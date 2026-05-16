@@ -25,7 +25,7 @@ declare variable $xqrsrc:ENTITIES_URL := "https://html.spec.whatwg.org/entities.
 
 (: 
    1. CARGA DEL DICCIONARIO DE ENTIDADES
-   Corregido para evitar el error XPTY0004 asegurando que siempre haya un mapa.
+   Corregido para evitar el error XPTY0004 asegurando que siempre haya un mapa, es un dolor de cabeza luego
 :)
 declare %private variable $xqrsrc:HTML_MAP := 
   let $json-text := 
@@ -34,12 +34,12 @@ declare %private variable $xqrsrc:HTML_MAP :=
       else 
         let $fetched := fetch:text($xqrsrc:ENTITIES_URL)
         return (file:write($xqrsrc:ENTITIES_LOCAL_PATH, $fetched), $fetched)[2]
-    } catch * { "{}" } (: Fallback a JSON vacío si hay error de red o archivo :)
+    } catch * { "{}" } (: manda un fallback a JSON vacío si hay error de red o archivo :)
   
   let $json := parse-json($json-text)
   return 
     if ($json instance of map(*)) then $json
-    else map { } (: Garantiza que siempre sea un mapa :);
+    else map { } (: Garantiza que siempre sea un mapa y evitar otro tipo de dato :);
 
 (: 2. DECODIFICADOR DE ENTIDADES HTML5 :)
 declare %private function xqrsrc:decode-html($text as xs:string) as xs:string {
@@ -53,7 +53,7 @@ declare %private function xqrsrc:decode-html($text as xs:string) as xs:string {
           case element(fn:non-match) return string($part)
           case element(fn:match) return
             let $entity-name := "&amp;" || $part/fn:group
-            (: El mapa de la WHATWG tiene la clave completa incluyendo el & y el ; :)
+            (: El mapa de WHATWG tiene la clave completa incluyendo el & y el ; :)
             let $match := $xqrsrc:HTML_MAP?($entity-name)
             return 
               if (exists($match)) then $match?characters
@@ -73,14 +73,14 @@ declare %private function xqrsrc:decode-html($text as xs:string) as xs:string {
     })()
 };
 
-(: 3. ESCAPADOR PARA CÓDIGO FUENTE (Protección crítica para xquery:eval) :)
+(: 3. ESPACE PARA CÓDIGO FUENTE (Protección importante para xquery:eval) :)
 declare function xqrsrc:escape-for-eval($text as xs:string) as xs:string {
   $text 
-    => replace("'", "''")            (: Escapar comilla simple para literal de XQuery :)
-    => replace("&amp;", "&amp;amp;") (: Escapar & para que el parser de eval() no busque entidades :)
+    => replace("'", "''")            (: Escape de comilla simple para literal de XQuery :)
+    => replace("&amp;", "&amp;amp;") (: Escape de & para que el parser de eval() no busque entidades :)
 };
 
-(: 4. TRANSFORMADOR RECURSIVO ESTILO XQUERY 3.1:)
+(: 4. RENDER RECURSIVO ESTILO XQUERY 3.1:)
 declare function xqrsrc:render($nodes as node()*, $level as xs:integer) as xs:string* {
   let $indent := string-join(for $i in 1 to $level return "  ", "")
   for $node in $nodes
@@ -111,7 +111,7 @@ declare function xqrsrc:render($nodes as node()*, $level as xs:integer) as xs:st
     default return ()
 };
 
-(: 4. TRANSFORMADOR RECURSIVO ESTILO XQUERY 4.0:)
+(: 4. RENDER RECURSIVO ESTILO XQUERY 4.0:)
 declare function xqrsrc:render-4($nodes as node()*, $level as xs:integer) as xs:string* {
   let $indent := string-join(for $i in 1 to $level return "  ", "")
   for $node in $nodes
